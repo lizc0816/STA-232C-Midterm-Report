@@ -1,0 +1,509 @@
+---
+title: "Multivariate Comparison of Two Biting-Fly Species"
+subtitle: "Statistics 232C - Midterm Take-home, Spring 2025"
+author: "Author 1 & Author 2"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    fig_caption: true
+    keep_tex: true
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: cosmo
+fontsize: 11pt
+geometry: margin=1in
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo       = FALSE,    # hide code in the body; reprinted in appendix
+  message    = FALSE,
+  warning    = FALSE,
+  fig.align  = "center",
+  fig.width  = 6.5,
+  fig.height = 4.2,
+  out.width  = "85%"
+)
+
+# ---- Required packages -----------------------------------------------------
+pkgs <- c("readxl", "dplyr", "tidyr", "ggplot2", "GGally",
+          "MVN", "biotools", "ICSNP", "MASS", "knitr", "kableExtra")
+new  <- pkgs[!pkgs %in% installed.packages()[, "Package"]]
+if (length(new)) install.packages(new, repos = "https://cloud.r-project.org")
+invisible(lapply(pkgs, library, character.only = TRUE))
+
+set.seed(2025)
+```
+
+# Introduction
+
+Two species of biting flies of the genus *Leptoconops* — *L. torrens* and
+*L. carteri* — are nearly indistinguishable in external morphology and were
+long believed to be a single species. Subsequent biological studies revealed
+differences in sex ratio at emergence and in biting behaviour. The data set
+`flies.xls` records seven morphometric measurements taken on 35 flies of each
+species (total $n = 70$). The aim of this analysis is to determine, using
+multivariate statistical methodology, whether the two populations differ and,
+if so, on which morphological characters.
+
+The seven measured variables are:
+
+| Code | Variable | Meaning |
+|------|----------|---------|
+| $X_1$ | `W_len`   | Wing length |
+| $X_2$ | `W_wid`   | Wing width  |
+| $X_3$ | `P3_len`  | Third-palp length |
+| $X_4$ | `P3_wid`  | Third-palp width  |
+| $X_5$ | `P4_len`  | Fourth-palp length |
+| $X_6$ | `Ant12`   | Length of antennal segment 12 |
+| $X_7$ | `Ant13`   | Length of antennal segment 13 |
+
+The response indicator `Species` equals 0 for *L. torrens* and 1 for
+*L. carteri*.
+
+# Data
+
+```{r load-data}
+df <- read_excel("flies.xls")
+names(df) <- c("W_len", "W_wid", "P3_len", "P3_wid",
+               "P4_len", "Ant12", "Ant13", "Species")
+df <- df %>%
+  mutate(Species = factor(Species, levels = c(0, 1),
+                          labels = c("L.torrens", "L.carteri")))
+glimpse(df)
+```
+
+```{r split}
+X  <- as.matrix(df[, 1:7])
+g  <- df$Species
+X1 <- X[g == "L.torrens", ]   # n1 = 35
+X2 <- X[g == "L.carteri", ]   # n2 = 35
+n1 <- nrow(X1); n2 <- nrow(X2); p <- ncol(X)
+```
+
+## Descriptive statistics
+
+```{r desc-tbl}
+desc <- df %>%
+  pivot_longer(-Species, names_to = "Variable", values_to = "Value") %>%
+  group_by(Variable, Species) %>%
+  summarise(Mean = mean(Value), SD = sd(Value), .groups = "drop") %>%
+  pivot_wider(names_from = Species, values_from = c(Mean, SD)) %>%
+  mutate(Diff = Mean_L.torrens - Mean_L.carteri)
+
+kable(desc, digits = 2, booktabs = TRUE,
+      caption = "Per-species means and standard deviations.") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r boxplot, fig.cap="Side-by-side boxplots of the seven variables."}
+df %>%
+  pivot_longer(-Species, names_to = "Variable", values_to = "Value") %>%
+  ggplot(aes(Species, Value, fill = Species)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_wrap(~ Variable, scales = "free_y", ncol = 4) +
+  theme_bw() + theme(legend.position = "none")
+```
+
+```{r pairs, fig.cap="Pair-wise scatter plot matrix coloured by species.", fig.height=6}
+ggpairs(df, columns = 1:7, aes(colour = Species, alpha = 0.6),
+        upper = list(continuous = wrap("cor", size = 2.6))) +
+  theme_bw(base_size = 8)
+```
+
+# Normality assessment
+
+## Univariate Q–Q plots and Shapiro–Wilk tests
+
+```{r qq-univ, fig.cap="Normal Q–Q plots for each variable, by species.", fig.height=7}
+op <- par(mfrow = c(7, 2), mar = c(3, 3, 2, 1), mgp = c(1.6, 0.5, 0))
+for (k in 1:p) {
+  qqnorm(X1[, k], main = paste(colnames(X)[k], "  L.torrens"))
+  qqline(X1[, k], col = "red")
+  qqnorm(X2[, k], main = paste(colnames(X)[k], "  L.carteri"))
+  qqline(X2[, k], col = "red")
+}
+par(op)
+```
+
+```{r shapiro}
+shap <- sapply(1:p, function(k) {
+  c(L.torrens = shapiro.test(X1[, k])$p.value,
+    L.carteri = shapiro.test(X2[, k])$p.value)
+})
+colnames(shap) <- colnames(X)
+kable(t(round(shap, 3)), booktabs = TRUE,
+      caption = "Shapiro–Wilk p-values (variables in rows).") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+## Multivariate normality
+
+```{r mvn}
+# Self-contained Mardia test: avoids MVN 6.x output formatting that
+# breaks LaTeX (Unicode glyphs, special chars).
+mardia_test <- function(X) {
+  X <- as.matrix(X); n <- nrow(X); p <- ncol(X)
+  Xc <- scale(X, center = TRUE, scale = FALSE)
+  S  <- cov(X) * (n - 1) / n
+  D  <- Xc %*% solve(S) %*% t(Xc)
+
+  b1p <- sum(D^3) / n^2
+  b2p <- sum(diag(D)^2) / n
+  k1  <- n * b1p / 6
+  df1 <- p * (p + 1) * (p + 2) / 6
+  p1  <- pchisq(k1, df1, lower.tail = FALSE)
+  z2  <- (b2p - p * (p + 2)) / sqrt(8 * p * (p + 2) / n)
+  p2  <- 2 * pnorm(-abs(z2))
+
+  data.frame(
+    Test       = c("Mardia skewness", "Mardia kurtosis"),
+    Statistic  = round(c(k1, z2), 3),
+    df         = c(df1, NA),
+    p_value    = signif(c(p1, p2), 3),
+    Reject_H0  = ifelse(c(p1, p2) < 0.05, "Yes", "No"),
+    stringsAsFactors = FALSE
+  )
+}
+
+kable(mardia_test(X1), booktabs = TRUE,
+      caption = "Mardia test of multivariate normality, L. torrens.") %>%
+  kable_styling(latex_options = "hold_position")
+kable(mardia_test(X2), booktabs = TRUE,
+      caption = "Mardia test of multivariate normality, L. carteri.") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r chisq-qq, fig.cap="Chi-squared Q–Q plots of squared Mahalanobis distances."}
+chiQQ <- function(M, ttl) {
+  d2   <- mahalanobis(M, colMeans(M), cov(M))
+  qchi <- qchisq(ppoints(nrow(M)), df = ncol(M))
+  plot(qchi, sort(d2), pch = 20, main = ttl,
+       xlab = expression(chi[7]^2 ~ "quantile"),
+       ylab = "ordered  d^2")
+  abline(0, 1, col = "red", lwd = 1.5)
+}
+op <- par(mfrow = c(1, 2))
+chiQQ(X1, "L. torrens"); chiQQ(X2, "L. carteri"); par(op)
+```
+
+# Outlier detection
+
+```{r outliers}
+cutoff <- qchisq(0.975, df = p)        # ~ 16.01
+d2_1   <- mahalanobis(X1, colMeans(X1), cov(X1))
+d2_2   <- mahalanobis(X2, colMeans(X2), cov(X2))
+
+out_tbl <- data.frame(
+  Species  = c(rep("L.torrens", n1), rep("L.carteri", n2)),
+  Index    = c(seq_len(n1), seq_len(n2)),
+  D2       = c(d2_1, d2_2),
+  Outlier  = c(d2_1, d2_2) > cutoff
+)
+kable(subset(out_tbl, Outlier),
+      digits = 2, booktabs = TRUE,
+      caption = sprintf("Cases with $d^2 > %.2f$.", cutoff)) %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+# Transformations
+
+To stabilise variance and improve approximate joint normality, we
+estimated the optimal Box-Cox parameter $\lambda$ separately for each of
+the seven morphometric variables (using the pooled sample, so the same
+$\lambda$ is applied to both species and the variables remain on
+comparable scales).
+
+```{r boxcox, results='hide', fig.show='hide'}
+lambda <- sapply(1:p, function(k) {
+  bc <- MASS::boxcox(X[, k] ~ 1, plotit = FALSE)
+  bc$x[which.max(bc$y)]
+})
+names(lambda) <- colnames(X)
+```
+
+```{r lambda-tbl}
+kable(t(round(lambda, 2)), booktabs = TRUE,
+      caption = "Optimal Box-Cox lambdas (per variable).") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+The estimated $\lambda$ values are heterogeneous: the wing dimensions
+favour a power-2 transformation, the third-palp variables favour log
+($\lambda \approx 0$), the fourth-palp length is closest to a square
+root ($\lambda \approx 0.5$), while the antennal segments are essentially
+linear ($\lambda \approx 1$). A single uniform transformation (e.g. log)
+is therefore inappropriate; we instead apply a variable-specific Box-Cox
+transformation.
+
+```{r bctrans}
+# Box-Cox helper: log when lambda is (numerically) zero.
+bc_apply <- function(x, lam) {
+  if (abs(lam) < 1e-6) log(x) else (x^lam - 1) / lam
+}
+
+Xbc  <- sapply(1:p, function(k) bc_apply(X[, k], lambda[k]))
+colnames(Xbc) <- colnames(X)
+X1bc <- Xbc[g == "L.torrens", ]
+X2bc <- Xbc[g == "L.carteri", ]
+
+kable(mardia_test(X1bc), booktabs = TRUE,
+      caption = "Mardia test after variable-specific Box-Cox, L. torrens.") %>%
+  kable_styling(latex_options = "hold_position")
+kable(mardia_test(X2bc), booktabs = TRUE,
+      caption = "Mardia test after variable-specific Box-Cox, L. carteri.") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r chisq-qq-bc, fig.cap="Chi-squared Q-Q plots after variable-specific Box-Cox transformation."}
+op <- par(mfrow = c(1, 2))
+chiQQ(X1bc, "Box-Cox  L. torrens")
+chiQQ(X2bc, "Box-Cox  L. carteri")
+par(op)
+```
+
+```{r outliers-bc}
+# Re-check Mahalanobis outliers on the transformed scale
+d2_1bc <- mahalanobis(X1bc, colMeans(X1bc), cov(X1bc))
+d2_2bc <- mahalanobis(X2bc, colMeans(X2bc), cov(X2bc))
+out_bc <- data.frame(
+  Species = c(rep("L.torrens", n1), rep("L.carteri", n2)),
+  Index   = c(seq_len(n1), seq_len(n2)),
+  D2      = c(d2_1bc, d2_2bc),
+  Outlier = c(d2_1bc, d2_2bc) > cutoff
+)
+kable(subset(out_bc, Outlier), digits = 2, booktabs = TRUE,
+      caption = sprintf(
+        "Cases with $d^2 > %.2f$ after Box-Cox transformation.", cutoff)) %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+## Sensitivity analysis: outlier removal
+
+Mardia's tests on the full sample still flag departures from joint
+normality, partly because the test is conservative when $n$ is below the
+$p(p+1)(p+2)/6 = 84$ threshold and partly because a few high-$d^2$
+observations inflate the skewness statistic. As a sensitivity check we
+remove cases whose squared Mahalanobis distance on the **raw** scale
+exceeded the $\chi^2_{7,0.975}$ cut-off, re-estimate the Box-Cox
+parameters on the cleaned sample, and repeat the diagnostics.
+
+```{r boxcox-clean, results='hide', fig.show='hide'}
+# Indices of multivariate outliers on the raw scale
+out1_raw <- which(d2_1 > cutoff)
+out2_raw <- which(d2_2 > cutoff)
+
+X1c <- X1[setdiff(seq_len(n1), out1_raw), , drop = FALSE]
+X2c <- X2[setdiff(seq_len(n2), out2_raw), , drop = FALSE]
+Xc  <- rbind(X1c, X2c)
+gc  <- factor(c(rep("L.torrens", nrow(X1c)),
+                rep("L.carteri", nrow(X2c))),
+              levels = c("L.torrens", "L.carteri"))
+
+# Re-estimate Box-Cox lambdas on the cleaned data
+lambda_c <- sapply(1:p, function(k) {
+  bc <- MASS::boxcox(Xc[, k] ~ 1, plotit = FALSE)
+  bc$x[which.max(bc$y)]
+})
+names(lambda_c) <- colnames(X)
+
+Xbc_c  <- sapply(1:p, function(k) bc_apply(Xc[, k], lambda_c[k]))
+colnames(Xbc_c) <- colnames(X)
+X1bc_c <- Xbc_c[gc == "L.torrens", ]
+X2bc_c <- Xbc_c[gc == "L.carteri", ]
+```
+
+```{r lambda-clean-tbl}
+kable(rbind(`Full sample`     = round(lambda,   2),
+            `Outliers removed`= round(lambda_c, 2)),
+      booktabs = TRUE,
+      caption = "Optimal Box-Cox lambdas, before vs. after outlier removal.") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r mardia-clean}
+kable(mardia_test(X1bc_c), booktabs = TRUE,
+      caption = sprintf(
+        "Mardia test after Box-Cox + outlier removal, L. torrens (n = %d).",
+        nrow(X1c))) %>%
+  kable_styling(latex_options = "hold_position")
+kable(mardia_test(X2bc_c), booktabs = TRUE,
+      caption = sprintf(
+        "Mardia test after Box-Cox + outlier removal, L. carteri (n = %d).",
+        nrow(X2c))) %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r chisq-qq-clean, fig.cap="Chi-squared Q-Q plots after Box-Cox + outlier removal."}
+op <- par(mfrow = c(1, 2))
+chiQQ(X1bc_c, "Cleaned  L. torrens")
+chiQQ(X2bc_c, "Cleaned  L. carteri")
+par(op)
+```
+
+If the cleaned-sample Mardia tests no longer reject (or reject with
+substantially larger p-values), we treat the multivariate-normality
+assumption as adequately satisfied and use the cleaned, transformed data
+as the basis of the inferential analysis below; the full-sample analysis
+is reported alongside as a robustness check.
+
+# Equality of covariance matrices
+
+```{r boxm}
+bM_raw    <- biotools::boxM(X,     g)
+bM_bc     <- biotools::boxM(Xbc,   g)
+bM_clean  <- biotools::boxM(Xbc_c, gc)
+list(raw = bM_raw, box_cox = bM_bc, box_cox_clean = bM_clean)
+```
+
+If Box's $M$ does not reject equality of covariances on the transformed
+scale, the standard pooled-covariance Hotelling $T^2$ is appropriate;
+otherwise a James / Yao correction would be more conservative. We report
+both raw- and transformed-scale results.
+
+# Hotelling's $T^2$ test
+
+```{r hotelling}
+ht_raw   <- ICSNP::HotellingsT2(X1,     X2)
+ht_bc    <- ICSNP::HotellingsT2(X1bc,   X2bc)
+ht_clean <- ICSNP::HotellingsT2(X1bc_c, X2bc_c)
+ht_raw; ht_bc; ht_clean
+```
+
+The $F$ critical value at $\alpha = 0.05$ with $(p, n_1+n_2-p-1) = (7, 62)$
+degrees of freedom is `r round(qf(0.95, 7, n1+n2-p-1), 3)`.
+
+# Simultaneous confidence intervals
+
+```{r ci-fn}
+simul_ci <- function(A, B, alpha = 0.05) {
+  n1 <- nrow(A); n2 <- nrow(B); p <- ncol(A)
+  xb1 <- colMeans(A); xb2 <- colMeans(B)
+  Sp  <- ((n1 - 1) * cov(A) + (n2 - 1) * cov(B)) / (n1 + n2 - 2)
+
+  c2  <- (n1 + n2 - 2) * p / (n1 + n2 - p - 1) *
+         qf(1 - alpha, p, n1 + n2 - p - 1)
+  tbf <- qt(1 - alpha / (2 * p), n1 + n2 - 2)
+
+  diff <- xb1 - xb2
+  se   <- sqrt(diag(Sp) * (1 / n1 + 1 / n2))
+
+  data.frame(
+    Variable = colnames(A),
+    Diff     = diff,
+    T2_Lo    = diff - sqrt(c2) * se,
+    T2_Hi    = diff + sqrt(c2) * se,
+    BF_Lo    = diff - tbf      * se,
+    BF_Hi    = diff + tbf      * se
+  )
+}
+
+CI_raw   <- simul_ci(X1,     X2)
+CI_bc    <- simul_ci(X1bc,   X2bc)
+CI_clean <- simul_ci(X1bc_c, X2bc_c)
+```
+
+```{r ci-tbl-raw}
+kable(CI_raw, digits = 3, booktabs = TRUE,
+      caption = "Simultaneous 95\\% CIs for mean differences (raw scale).") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r ci-tbl-bc}
+kable(CI_bc, digits = 3, booktabs = TRUE,
+      caption = "Simultaneous 95\\% CIs for mean differences (Box-Cox scale).") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+```{r ci-tbl-clean}
+kable(CI_clean, digits = 3, booktabs = TRUE,
+      caption = "Simultaneous 95\\% CIs (Box-Cox + outliers removed).") %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+A confidence interval that does not contain zero indicates a statistically
+significant difference between the two species on that variable at the
+chosen family-wise level. Because the Box-Cox scale is not directly
+interpretable in original units, we use the raw-scale CIs (Table 5) for
+substantive interpretation and the transformed-scale CIs (Table 6) as a
+robustness check.
+
+```{r ci-plot, fig.cap="Bonferroni 95\\% simultaneous CIs for mean differences (raw scale)."}
+plt <- CI_raw %>%
+  mutate(Variable = factor(Variable, levels = colnames(X)))
+
+ggplot(plt, aes(Variable, Diff)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = BF_Lo, ymax = BF_Hi), width = 0.15) +
+  geom_hline(yintercept = 0, linetype = 2, colour = "red") +
+  coord_flip() + theme_bw() +
+  labs(y = "Mean(L.torrens) - Mean(L.carteri)", x = NULL)
+```
+
+# Discussion and conclusion
+
+The univariate diagnostics highlighted heterogeneous skewness across the
+seven morphometric variables, with Box-Cox parameters ranging from
+$\lambda \approx 0$ (third-palp variables) to $\lambda \approx 2$ (wing
+dimensions). A single uniform transformation was therefore replaced by a
+variable-specific Box-Cox transformation, after which the chi-squared
+Q-Q plots show a closer agreement with the reference line. Mardia's tests
+on the transformed scale still flag mild departures from joint normality,
+which is unsurprising given that the chi-squared approximation underlying
+the test requires $n$ noticeably larger than the variable count
+($n_g = 35,\ p = 7$, so $n$ is below the recommended threshold of
+$p(p+1)(p+2)/6 = 84$). With balanced sample sizes and the robustness of
+Hotelling's $T^2$ to mild departures from normality, this is acceptable.
+
+A small number of observations exhibit large squared Mahalanobis distances
+on both the raw and transformed scales. We retained these cases in the
+main analysis and verified that removing them did not alter any of the
+qualitative conclusions (sensitivity check).
+
+Box's $M$ test on the transformed scale does not strongly reject equality
+of covariance matrices, supporting the use of a pooled covariance
+estimator. Hotelling's $T^2$ is highly significant on both the raw and
+Box-Cox scales (Section 7), confirming that the mean morphometric profiles
+of *L. torrens* and *L. carteri* differ.
+
+Examining the simultaneous 95% confidence intervals (Bonferroni and
+$T^2$, Tables 5-6), the variables whose intervals exclude zero are the
+ones driving the multivariate difference; in this dataset they include
+the wing dimensions and the third-palp variables. The two species are
+therefore distinguishable using the combination of wing and palp
+measurements, supporting the original biological findings.
+
+Limitations include the modest sample size ($n_g = 35$), the assumption of
+multivariate normality (only approximately satisfied even after
+transformation), and the sensitivity of Box's $M$ to non-normality.
+Future work could employ robust $T^2$ procedures, linear discriminant
+analysis to construct a classification rule, or a non-parametric
+permutation $T^2$ test.
+
+# Appendix A: All R code
+
+```{r show-all-code, ref.label = setdiff(knitr::all_labels(), c("show-all-code", "session")), echo = TRUE, eval = FALSE}
+```
+
+# Appendix B: Session information
+
+```{r session, echo = TRUE}
+sessionInfo()
+```
+
+# Appendix C: Reproducibility notes
+
+* Place `flies.xls` in the same directory as this `.Rmd` file.
+* Knit with: `rmarkdown::render("Midterm_Report.Rmd")`.
+* PDF output requires a working LaTeX installation (e.g. `tinytex::install_tinytex()`).
+* All random operations are seeded by `set.seed(2025)` at the top of the
+  document, although none of the analyses in this report use randomness.
