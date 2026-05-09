@@ -299,9 +299,9 @@ kable(subset(out_bc, Outlier), digits = 2, booktabs = TRUE,
 
 ## Sensitivity analysis: outlier removal
 
-Mardia's tests on the full sample still flag departures from joint
+The previous results showed that, the Mardia's tests on the full sample still flag departures from joint
 normality, partly because the test is conservative when $n$ is below the
-$p(p+1)(p+2)/6 = 84$ threshold and partly because a few high-$d^2$
+$p(p+1)(p+2)/6 = 84$ threshold; we also suspect that a few high-$d^2$
 observations inflate the skewness statistic. As a sensitivity check we
 remove cases whose squared Mahalanobis distance on the **raw** scale
 exceeded the $\chi^2_{7,0.975}$ cut-off, re-estimate the Box-Cox
