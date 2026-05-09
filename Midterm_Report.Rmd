@@ -360,11 +360,7 @@ chiQQ(X2bc_c, "Cleaned  L. carteri")
 par(op)
 ```
 
-If the cleaned-sample Mardia tests no longer reject (or reject with
-substantially larger p-values), we treat the multivariate-normality
-assumption as adequately satisfied and use the cleaned, transformed data
-as the basis of the inferential analysis below; the full-sample analysis
-is reported alongside as a robustness check.
+Note that, the cleaned-sample Mardia tests no longer reject the null hypotheses, therefore, we treat the multivariate-normality assumption as adequately satisfied and use the cleaned, transformed data as the basis of the inferential analysis below; the full-sample analysis is reported alongside as a robustness check.
 
 # Equality of covariance matrices
 
