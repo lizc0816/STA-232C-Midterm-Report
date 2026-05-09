@@ -272,7 +272,7 @@ kable(mardia_test(X2bc), booktabs = TRUE,
   kable_styling(latex_options = "hold_position")
 ```
 
-After performing the variable-specified Box-cox transformation, we applied group-based **Mardia Test** for normality testing; the results turned to be unsatisfying-we still reject the null hypotheses(normality assumption) even after transformation; also, 4 outliers were detected after transformation.
+After performing the variable-specified Box-cox transformation, we applied group-based **Mardia Test** for normality testing; the results turned to be unsatisfying-we still reject the null hypotheses(normality assumption) even after transformation; the chi-square QQ plots also show that the sample distribution did not conform to standard chi-square distribution. In addition, 4 outliers were detected after transformation.
 
 ```{r chisq-qq-bc, fig.cap="Chi-squared Q-Q plots after variable-specific Box-Cox transformation."}
 op <- par(mfrow = c(1, 2))
