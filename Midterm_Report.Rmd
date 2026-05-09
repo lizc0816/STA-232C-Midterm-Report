@@ -114,13 +114,13 @@ df %>%
   theme_bw() + theme(legend.position = "none")
 ```
 
-From the table and boxplots above, we can learn that *L. carteri* tends to have larger measurements, especially in wing length, third palp length and fourth palp length. Moreover, the boxplots indicate that there might exist a few outliers.
-
 ```{r pairs, fig.cap="Pair-wise scatter plot matrix coloured by species.", fig.height=6}
 ggpairs(df, columns = 1:7, aes(colour = Species, alpha = 0.6),
         upper = list(continuous = wrap("cor", size = 2.6))) +
   theme_bw(base_size = 8)
 ```
+
+From the table and plots above, we can learn that *L. carteri* tends to have larger measurements, especially in wing length, third palp length and fourth palp length. Moreover, the boxplots indicate that there might exist a few outliers.
 
 # Normality assessment
 
