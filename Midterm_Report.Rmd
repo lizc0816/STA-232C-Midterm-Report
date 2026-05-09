@@ -120,7 +120,7 @@ ggpairs(df, columns = 1:7, aes(colour = Species, alpha = 0.6),
   theme_bw(base_size = 8)
 ```
 
-From the table and plots above, we can learn that *L. carteri* tends to have larger measurements, especially in wing length, third palp length and fourth palp length. Moreover, the boxplots indicate that there might exist a few outliers.
+We first carry out exploratory data analysis. From the table and plots above, we can learn that *L. carteri* tends to have larger measurements, especially in wing length, third palp length and fourth palp length. Moreover, the boxplots indicate that there might exist a few outliers and pairwise scatterplots show that the data is not in a Gaussian distribution in general.
 
 # Normality assessment
 
@@ -147,6 +147,8 @@ kable(t(round(shap, 3)), booktabs = TRUE,
       caption = "Shapiro–Wilk p-values (variables in rows).") %>%
   kable_styling(latex_options = "hold_position")
 ```
+
+To check the normality for this data set, we first check the univariate normality and then the multivariate normality. The qqplots and Shapiro–Wilk tests for each variables indicate that almost every variable violates the normality assumption.
 
 ## Multivariate normality
 
@@ -197,6 +199,8 @@ chiQQ <- function(M, ttl) {
 op <- par(mfrow = c(1, 2))
 chiQQ(X1, "L. torrens"); chiQQ(X2, "L. carteri"); par(op)
 ```
+
+To check the multivariate normality, the qqplot compares ordered Mahalanobis distances with theoretical chi-square quantiles. As shown in the plots, some points lie far away from the straight line, so the multivariate normality assumption is unreasonable. Therefore, we might need to transform the raw data.
 
 # Outlier detection
 
@@ -367,10 +371,7 @@ bM_clean  <- biotools::boxM(Xbc_c, gc)
 list(raw = bM_raw, box_cox = bM_bc, box_cox_clean = bM_clean)
 ```
 
-If Box's $M$ does not reject equality of covariances on the transformed
-scale, the standard pooled-covariance Hotelling $T^2$ is appropriate;
-otherwise a James / Yao correction would be more conservative. We report
-both raw- and transformed-scale results.
+The Box’s $M$ test suggested unequal covariance matrices between the two species. Despite this violation, Hotelling’s $T^2$ test was retained for inference, as the method is generally robust to moderate heterogeneity of covariance structures under approximate multivariate normality and comparable sample sizes. Nevertheless, the potential impact of covariance heterogeneity should be acknowledged when interpreting the results.
 
 # Hotelling's $T^2$ test
 
@@ -381,6 +382,7 @@ ht_clean <- ICSNP::HotellingsT2(X1bc_c, X2bc_c)
 ht_raw; ht_bc; ht_clean
 ```
 
+We report both raw- and transformed-scale results.
 The $F$ critical value at $\alpha = 0.05$ with $(p, n_1+n_2-p-1) = (7, 62)$
 degrees of freedom is `r round(qf(0.95, 7, n1+n2-p-1), 3)`.
 
