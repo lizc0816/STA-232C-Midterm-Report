@@ -245,12 +245,12 @@ kable(t(round(lambda, 2)), booktabs = TRUE,
   kable_styling(latex_options = "hold_position")
 ```
 
-The estimated $\lambda$ values are heterogeneous: the wing dimensions
-favour a power-2 transformation, the third-palp variables favour log
-($\lambda \approx 0$), the fourth-palp length is closest to a square
-root ($\lambda \approx 0.5$), while the antennal segments are essentially
-linear ($\lambda \approx 1$). A single uniform transformation (e.g. log)
-is therefore inappropriate; we instead apply a variable-specific Box-Cox
+The estimated $\lambda$ values are quite different: the wing dimensions
+favor a squared transformation, the third-palp variables favor logarithmic transformation
+($\lambda \approx 0$), the fourth-palp length favors a square
+root transformation ($\lambda \approx 0.5$), while the antennal segments are close to a
+linear transformation ($\lambda \approx 1$). Thus, A single uniform transformation (e.g. log)
+is inappropriate; we instead apply a variable-specific Box-Cox
 transformation.
 
 ```{r bctrans}
