@@ -382,9 +382,7 @@ ht_clean <- ICSNP::HotellingsT2(X1bc_c, X2bc_c)
 ht_raw; ht_bc; ht_clean
 ```
 
-We report both raw- and transformed-scale results.
-The $F$ critical value at $\alpha = 0.05$ with $(p, n_1+n_2-p-1) = (7, 62)$
-degrees of freedom is `r round(qf(0.95, 7, n1+n2-p-1), 3)`.
+We report both raw- and transformed- (Box-Cox + outliers removed) results in the following analysis. For both raw data and transformed data, p-value of Hotelling’s $T^2$ test is much smaller than 0.01, strongly rejecting the null hypothesis that the two species have identical mean vectors. Therefore, there is strong evidence that the populations differ morphologically.
 
 # Simultaneous confidence intervals
 
@@ -434,13 +432,6 @@ kable(CI_clean, digits = 3, booktabs = TRUE,
   kable_styling(latex_options = "hold_position")
 ```
 
-A confidence interval that does not contain zero indicates a statistically
-significant difference between the two species on that variable at the
-chosen family-wise level. Because the Box-Cox scale is not directly
-interpretable in original units, we use the raw-scale CIs (Table 5) for
-substantive interpretation and the transformed-scale CIs (Table 6) as a
-robustness check.
-
 ```{r ci-plot, fig.cap="Bonferroni 95\\% simultaneous CIs for mean differences (raw scale)."}
 plt <- CI_raw %>%
   mutate(Variable = factor(Variable, levels = colnames(X)))
@@ -453,45 +444,17 @@ ggplot(plt, aes(Variable, Diff)) +
   labs(y = "Mean(L.torrens) - Mean(L.carteri)", x = NULL)
 ```
 
+We calculated the simultaneous 95% confidence intervals (CIs) for mean differences and visualized the results in figure 7. Confidence intervals that do not contain zero indicate significant differences between species at the chosen family-wise level. Because the Box-Cox scale is not directly interpretable in original units, we use the raw-scale CIs (Table 13) for substantive interpretation and the transformed-scale CIs (Table 14 and 15) as a robustness check.
+
+The third palp length and fourth palp length show the clearest separation, and wing length also has small difference, while other variables may show weaker differences. This further confirms the results from the Hotelling’s $T^2$ test, indicating that these morphological features are indeed different between *L. carteri* and *L. torrens*.
+
 # Discussion and conclusion
 
-The univariate diagnostics highlighted heterogeneous skewness across the
-seven morphometric variables, with Box-Cox parameters ranging from
-$\lambda \approx 0$ (third-palp variables) to $\lambda \approx 2$ (wing
-dimensions). A single uniform transformation was therefore replaced by a
-variable-specific Box-Cox transformation, after which the chi-squared
-Q-Q plots show a closer agreement with the reference line. Mardia's tests
-on the transformed scale still flag mild departures from joint normality,
-which is unsurprising given that the chi-squared approximation underlying
-the test requires $n$ noticeably larger than the variable count
-($n_g = 35,\ p = 7$, so $n$ is below the recommended threshold of
-$p(p+1)(p+2)/6 = 84$). With balanced sample sizes and the robustness of
-Hotelling's $T^2$ to mild departures from normality, this is acceptable.
+Our multivariate analysis provides strong statistical evidence that *L. torrens* and *L. carteri* differ morphologically. Hotelling’s $T^2$ test strongly rejects the null hypothesis of equal mean vectors, indicating significant multivariate differences between the two species. Examination of the simultaneous 95% confidence intervals further suggests that third-palp and fourth-palp measurements are among the primary contributors to these differences, implying that the species can be effectively distinguished using palp characteristics.
 
-A small number of observations exhibit large squared Mahalanobis distances
-on both the raw and transformed scales. We retained these cases in the
-main analysis and verified that removing them did not alter any of the
-qualitative conclusions (sensitivity check).
+Diagnostic plots indicated approximate multivariate normality after removing outliers and transformation, and no severe multivariate outliers were detected. Although Box’s $M$ test suggested possible heterogeneity of covariance matrices, the Hotelling’s $T^2$ procedure was retained because of its relative robustness under moderate departures from the equal covariance assumption. Nevertheless, the results should be interpreted with some caution due to the modest sample size and the sensitivity of Box’s $M$ test to equal variance.
 
-Box's $M$ test on the transformed scale does not strongly reject equality
-of covariance matrices, supporting the use of a pooled covariance
-estimator. Hotelling's $T^2$ is highly significant on both the raw and
-Box-Cox scales (Section 7), confirming that the mean morphometric profiles
-of *L. torrens* and *L. carteri* differ.
-
-Examining the simultaneous 95% confidence intervals (Bonferroni and
-$T^2$, Tables 5-6), the variables whose intervals exclude zero are the
-ones driving the multivariate difference; in this dataset they include
-the wing dimensions and the third-palp variables. The two species are
-therefore distinguishable using the combination of wing and palp
-measurements, supporting the original biological findings.
-
-Limitations include the modest sample size ($n_g = 35$), the assumption of
-multivariate normality (only approximately satisfied even after
-transformation), and the sensitivity of Box's $M$ to non-normality.
-Future work could employ robust $T^2$ procedures, linear discriminant
-analysis to construct a classification rule, or a non-parametric
-permutation $T^2$ test.
+Overall, the findings are consistent across multiple multivariate procedures and support the biological conclusion that *L. torrens* and *L. carteri* represent distinct populations rather than a single species. Future work could consider robust multivariate methods, permutation-based *T^2* procedures, or discriminant analysis to further investigate classification performance and robustness to assumption violations.
 
 # Appendix A: All R code
 
