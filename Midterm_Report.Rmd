@@ -1,7 +1,7 @@
 ---
 title: "Multivariate Comparison of Two Biting-Fly Species"
-subtitle: "Statistics 232C - Midterm Take-home, Spring 2025"
-author: "Author 1 & Author 2"
+subtitle: "STA 232C - Midterm Take-home, Spring 2026"
+author: "Zecheng Li & Kangle Lyu"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   pdf_document:
