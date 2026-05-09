@@ -221,6 +221,8 @@ kable(subset(out_tbl, Outlier),
   kable_styling(latex_options = "hold_position")
 ```
 
+In this section, we applied Mahalanobis distance to detect potential multivariate outliers; based on multivariate normality assumption, we should have $(X_i - \mu)^\top \Sigma^{-1} (X_i - \mu) \sim \mathcal{X}^2_p$; while the true variance matrix is knwonn, we used sample covarinace matrix instead, which theoretically will lead to a Beta distrtibuion; however, considering the sample size, we decide to use $\mathcal{X}^2_{p}$ quantile as benchmark and $97.5\%$-quantile as the cutoff for outliers(which is equivalent to a two-sided $5\%$ significance level); as result, data point $2, 15, 36$ were marked as potential outliers.
+
 # Transformations
 
 To stabilise variance and improve approximate joint normality, we
