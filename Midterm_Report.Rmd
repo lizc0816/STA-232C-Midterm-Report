@@ -454,7 +454,7 @@ Our multivariate analysis provides strong statistical evidence that *L. torrens*
 
 Diagnostic plots indicated approximate multivariate normality after removing outliers and transformation, and no severe multivariate outliers were detected. Although Box’s $M$ test suggested possible heterogeneity of covariance matrices, the Hotelling’s $T^2$ procedure was retained because of its relative robustness under moderate departures from the equal covariance assumption. Nevertheless, the results should be interpreted with some caution due to the modest sample size and the sensitivity of Box’s $M$ test to equal variance.
 
-Overall, the findings are consistent across multiple multivariate procedures and support the biological conclusion that *L. torrens* and *L. carteri* represent distinct populations rather than a single species. Future work could consider robust multivariate methods, permutation-based *T^2* procedures, or discriminant analysis to further investigate classification performance and robustness to assumption violations.
+Overall, the findings are consistent across multiple multivariate procedures and support the biological conclusion that *L. torrens* and *L. carteri* represent distinct populations rather than a single species. Future work could consider robust multivariate methods, permutation-based $T^2$ procedures, or discriminant analysis to further investigate classification performance and robustness to assumption violations.
 
 # Appendix A: All R code
 
