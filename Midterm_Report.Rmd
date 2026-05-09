@@ -225,7 +225,7 @@ In this section, we applied Mahalanobis distance to detect potential multivariat
 
 # Transformations
 
-To stabilise variance and improve approximate joint normality, we
+To stabilize variance and improve approximate joint normality, we
 estimated the optimal Box-Cox parameter $\lambda$ separately for each of
 the seven morphometric variables (using the pooled sample, so the same
 $\lambda$ is applied to both species and the variables remain on
